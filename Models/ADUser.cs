@@ -28,7 +28,7 @@
         {
             get
             {
-                return @"\\MAINFRAME.ad.academlyceum.zp.ua\infstud\" + this.Unit + @"\" + this.Username;
+                return @"\\ALEX.ad.academlyceum.zp.ua\infstud\" + this.Unit + @"\" + this.Username;
             }
         }
     }

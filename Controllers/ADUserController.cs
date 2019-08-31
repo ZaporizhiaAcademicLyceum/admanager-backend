@@ -12,14 +12,19 @@ namespace admanager_backend.Controllers
     [ApiController]
     public class ADUserController : ControllerBase
     {
+        private static readonly string AD_USER = Environment.GetEnvironmentVariable("AD_USER");
+        private static readonly string AD_PASS = Environment.GetEnvironmentVariable("AD_PASS");
+        private static readonly string AD_DC_HOST = Environment.GetEnvironmentVariable("AD_DC_HOST");
+        private static readonly string SECRET_KEY = Environment.GetEnvironmentVariable("SECRET_KEY");
+
         private PrincipalContext _principalSearch;
-        PrincipalContext SearchContext
+        PrincipalContext RootSearchContext
         {
             get
             {
                 if (_principalSearch == null)
                 {
-                    _principalSearch = new PrincipalContext(ContextType.Domain, null, @"AD\<REDACTED>", "<REDACTED>");
+                    _principalSearch = new PrincipalContext(ContextType.Domain, AD_DC_HOST, AD_USER, AD_PASS);
                 }
                 return _principalSearch;
             }
@@ -41,16 +46,16 @@ namespace admanager_backend.Controllers
         public object Post(PostData data)
         {
             string res = "ERROR: Unknown";
-            if (data.secretkey != "<REDACTED>")
+            if (data.secretkey != SECRET_KEY)
             {
                 res = "ERROR: secretkey";
             }
             else
             {
-                UserPrincipal userPrincipial = UserPrincipal.FindByIdentity(SearchContext, data.user.Username);
+                UserPrincipal userPrincipial = UserPrincipal.FindByIdentity(RootSearchContext, IdentityType.SamAccountName, data.user.Username);
                 if (userPrincipial != null)
                 {
-                    res = "ERROR: A user account already exist.";
+                    res = "ERROR: Account already exists";
                 }
                 else
                 {
@@ -70,8 +75,8 @@ namespace admanager_backend.Controllers
 
         private void CreateUser(ADUser postUser)
         {
-            PrincipalContext ctx = new PrincipalContext(ContextType.Domain, null, postUser.OU, @"AD\<REDACTED>", "<REDACTED>");
-            UserPrincipal newUser = new UserPrincipal(ctx, postUser.Username, postUser.Password, true);
+            var containerOU = new PrincipalContext(ContextType.Domain, AD_DC_HOST, postUser.OU, AD_USER, AD_PASS);
+            var newUser = new UserPrincipal(containerOU, postUser.Username, postUser.Password, true);
 
             newUser.UserPrincipalName = postUser.Username + "@academlyceum.zp.ua";
             newUser.Name = postUser.Firstname + " " + postUser.Lastname;
@@ -88,12 +93,12 @@ namespace admanager_backend.Controllers
             rawEntry.CommitChanges();
 
             AddUserToGroup(postUser, newUser);
-            CreateHomeDir(postUser);
+            CreateHomeDir(postUser.HomeDir, postUser.Username);
         }
 
         private void AddUserToGroup(ADUser postUser, UserPrincipal newUser)
         {
-            GroupPrincipal groupPrincipal = GroupPrincipal.FindByIdentity(SearchContext, postUser.Unit);
+            GroupPrincipal groupPrincipal = GroupPrincipal.FindByIdentity(RootSearchContext, postUser.Unit);
             if (groupPrincipal == null)
             {
                 throw new Exception("Group doesn't exists");
@@ -106,19 +111,19 @@ namespace admanager_backend.Controllers
             }
         }
 
-        private void CreateHomeDir(ADUser postUser)
+        private void CreateHomeDir(string uncPath, string username)
         {
-            DirectoryInfo dirInfo = Directory.CreateDirectory(postUser.HomeDir);
+            var dir = Directory.CreateDirectory(uncPath);
 
-            DirectorySecurity dirSecurity = dirInfo.GetAccessControl();
-            dirSecurity.AddAccessRule(new FileSystemAccessRule(postUser.Username,
+            var security = dir.GetAccessControl();
+            security.AddAccessRule(new FileSystemAccessRule(username,
                 FileSystemRights.FullControl,
                 InheritanceFlags.ContainerInherit | InheritanceFlags.ObjectInherit,
                 PropagationFlags.None,
                 AccessControlType.Allow)
             );
 
-            dirInfo.SetAccessControl(dirSecurity);
+            dir.SetAccessControl(security);
         }
     }
 }
