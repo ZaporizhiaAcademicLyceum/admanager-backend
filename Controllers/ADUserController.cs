@@ -3,14 +3,33 @@ using System.DirectoryServices;
 using System.DirectoryServices.AccountManagement;
 using System.IO;
 using System.Security.AccessControl;
-using System.Web.Http;
-using WebApplication3.Models;
+using Microsoft.AspNetCore.Mvc;
+using admanager_backend.Models;
 
-namespace WebApplication3.Controllers
+namespace admanager_backend.Controllers
 {
-    public class ADUserController : ApiController
+    [Route("api/[controller]")]
+    [ApiController]
+    public class ADUserController : ControllerBase
     {
-        private PrincipalContext ctxSearch = new PrincipalContext(ContextType.Domain, null, @"AD\<REDACTED>", "<REDACTED>");
+        private PrincipalContext _principalSearch;
+        PrincipalContext SearchContext
+        {
+            get
+            {
+                if (_principalSearch == null)
+                {
+                    _principalSearch = new PrincipalContext(ContextType.Domain, null, @"AD\<REDACTED>", "<REDACTED>");
+                }
+                return _principalSearch;
+            }
+        }
+
+        [Route("[action]")]
+        public object Debug()
+        {
+            return new { health = "ok" };
+        }
 
         public class PostData
         {
@@ -25,19 +44,22 @@ namespace WebApplication3.Controllers
             if (data.secretkey != "<REDACTED>")
             {
                 res = "ERROR: secretkey";
-            } else
+            }
+            else
             {
-                UserPrincipal userPrincipial = UserPrincipal.FindByIdentity(ctxSearch, data.user.Username);
+                UserPrincipal userPrincipial = UserPrincipal.FindByIdentity(SearchContext, data.user.Username);
                 if (userPrincipial != null)
                 {
                     res = "ERROR: A user account already exist.";
-                } else
+                }
+                else
                 {
                     try
                     {
                         CreateUser(data.user);
                         res = "OK";
-                    } catch (Exception e)
+                    }
+                    catch (Exception e)
                     {
                         res = "ERROR: " + e.Message;
                     }
@@ -71,7 +93,7 @@ namespace WebApplication3.Controllers
 
         private void AddUserToGroup(ADUser postUser, UserPrincipal newUser)
         {
-            GroupPrincipal groupPrincipal = GroupPrincipal.FindByIdentity(ctxSearch, postUser.Unit);
+            GroupPrincipal groupPrincipal = GroupPrincipal.FindByIdentity(SearchContext, postUser.Unit);
             if (groupPrincipal == null)
             {
                 throw new Exception("Group doesn't exists");
@@ -84,7 +106,7 @@ namespace WebApplication3.Controllers
             }
         }
 
-        private void CreateHomeDir (ADUser postUser)
+        private void CreateHomeDir(ADUser postUser)
         {
             DirectoryInfo dirInfo = Directory.CreateDirectory(postUser.HomeDir);
 

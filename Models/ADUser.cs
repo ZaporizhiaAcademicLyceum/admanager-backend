@@ -1,4 +1,4 @@
-﻿namespace WebApplication3.Models
+﻿namespace admanager_backend.Models
 {
     public class ADUser
     {
@@ -8,21 +8,26 @@
         public string Lastname { get; set; }
         public string Unit { get; set; }
 
-        public string OU {
+        public string OU
+        {
             get
             {
                 return "OU=" + this.Unit + ",OU=Students,OU=Users,OU=ACADEMLY,DC=ad,DC=academlyceum,DC=zp,DC=ua";
             }
         }
 
-        public string Department {
-            get {
+        public string Department
+        {
+            get
+            {
                 return this.Unit;
             }
         }
 
-        public string HomeDir {
-            get {
+        public string HomeDir
+        {
+            get
+            {
                 return @"\\MAINFRAME.ad.academlyceum.zp.ua\infstud\" + this.Unit + @"\" + this.Username;
             }
         }
